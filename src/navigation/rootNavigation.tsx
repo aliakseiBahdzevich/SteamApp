@@ -1,13 +1,14 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import TabNavigation from './tabNavigation';
 import AuthScreen from '../screens/authScreen/authScreen';
 import FriendsScreen from '../screens/friendsScreen/friendsScreen';
 import ProfileScreen from '../screens/profileScreen/profileScreen';
-
-// import LoginScreen from '../screens/LoginScreen';
-// import HomeScreen from '../screens/HomeScreen';
+import {useStore} from '../store/provider';
+import {observer} from 'mobx-react';
+import {getFriends, getProfileInfo} from '../api/api';
+import {get} from 'react-native/Libraries/TurboModule/TurboModuleRegistry';
 
 type RootStackParamList = {
   Login: undefined;
@@ -16,20 +17,25 @@ type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const RootNavigation = () => {
-  const isSignedIn = false;
+const RootNavigation = observer(() => {
+  const {user} = useStore();
+  console.log(user.isAuth);
 
+  // useEffect(() => {
+  //   getFriends(user)
+  //   getFriendsAvatar(user, user.steamId)
+  // }, [user.isAuth]);
   return (
     <NavigationContainer>
-      {isSignedIn ? (
+      {user.isAuth ? (
         <TabNavigation />
       ) : (
         <Stack.Navigator>
-            <Stack.Screen name="Login" component={AuthScreen} />
+          <Stack.Screen name="Login" component={AuthScreen} />
         </Stack.Navigator>
       )}
     </NavigationContainer>
   );
-};
+});
 
 export default RootNavigation;
