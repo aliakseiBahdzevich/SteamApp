@@ -15,19 +15,24 @@ const Tab = createBottomTabNavigator<TabParamList>();
 
 const TabNavigation = () => {
   return (
-    <Tab.Navigator screenOptions={{
-      // headerShown: false,
-      tabBarStyle: {
-        position: 'absolute',
-        backgroundColor: 'white',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        height: 80,
-        paddingTop: 5,
-      }
-    }}>
-      <Tab.Screen name="Friends" component={FriendsScreen} />
+    <Tab.Navigator
+      screenOptions={() => ({
+        tabBarStyle: {
+          position: 'absolute',
+          backgroundColor: 'white',
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          height: 80,
+          paddingTop: 5,
+        },
+        tabBarLabelStyle: {
+          fontSize: 16,
+          fontWeight: 'bold',
+        },
+      })}
+    >
       <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Friends" component={FriendsScreen} />
     </Tab.Navigator>
   );
 };

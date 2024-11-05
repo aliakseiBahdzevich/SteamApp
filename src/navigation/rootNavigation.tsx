@@ -18,13 +18,20 @@ type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const RootNavigation = observer(() => {
-  const {user} = useStore();
-  console.log(user.isAuth);
+  const {friends, user} = useStore();
+  useEffect(() => {
+      if (user.user?.apiKey && user.user?.steamId) {
+        friends.setUserParams(
+          user.user?.steamId, 
+          user.user?.apiKey, 
+        );
+        user.fetchProfileInfo();
+        if(user.isAuth){
+          friends.fetchFriends();
+        }
+      }
+  }, [user.user?.apiKey, user.user?.steamId, user.isAuth]);
 
-  // useEffect(() => {
-  //   getFriends(user)
-  //   getFriendsAvatar(user, user.steamId)
-  // }, [user.isAuth]);
   return (
     <NavigationContainer>
       {user.isAuth ? (

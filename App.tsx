@@ -26,15 +26,19 @@ import {
 } from 'react-native/Libraries/NewAppScreen';
 import RootNavigation from './src/navigation/rootNavigation';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
-import { StoreProvider } from './src/store/provider';
+// import { StoreProvider } from './src/store/provider';
 import { RootStore } from './src/store';
+import { Provider } from 'mobx-react';
+
 
 function App(): React.JSX.Element {
+
+  
   return (
     <SafeAreaProvider>
-      <StoreProvider value={RootStore}>
+      <Provider store={RootStore}>
         <RootNavigation />
-      </StoreProvider>
+      </Provider>
     </SafeAreaProvider>
   );
 }

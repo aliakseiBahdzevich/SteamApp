@@ -1,11 +1,21 @@
 
-interface Friend {
+interface FriendId {
   steamid: string;
   relationship: string;
   friend_since: number;
+}
+
+// interface Friend extends FriendId {
+//   avatar?: string;
+//   personastate?: number;
+//   personaname?: string;
+// }
+interface Friend{
   avatar?: string;
   personastate?: number;
   personaname?: string;
+  friend_since: number;
+  steamid: string;
 }
 
 interface User {

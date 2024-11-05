@@ -1,48 +1,57 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
-import { observer } from 'mobx-react';
-import { useStore } from '../../store/provider';
-import { getFriends, getProfileInfo } from '../../api/api';
+import React, {useEffect, useState} from 'react';
+import {View, Text, Button, StyleSheet, TouchableOpacity} from 'react-native';
+import {observer} from 'mobx-react';
+import {useStore} from '../../store/provider';
+import {getFriends, getProfileInfo} from '../../api/api';
+import Modal from "react-native-modal";
+import { opacity } from 'react-native-reanimated/lib/typescript/Colors';
+import { TextInput, Provider as PaperProvider } from 'react-native-paper';
+
 
 const AuthScreen: React.FC = observer(() => {
-  const { user } = useStore(); // Получаем хранилище
+  const {user, friends} = useStore(); // Получаем хранилище
 
   const [steamId, setSteamId] = useState('');
   const [apiKey, setApiKey] = useState('');
 
-  const getFrds = async () => {
-    await getFriends(user);
-    const friendsIds = user.friends.map(friend => friend.steamid).join(',');
-    
-    await getProfileInfo(user, friendsIds);
-    await getProfileInfo(user, user.steamId); 
-  };
-
-  const handleLogin = () => {
+  const handleLogin = async () => {
     user.setApiKey(apiKey);
     user.setSteamId(steamId);
-    getFrds();
-    console.log('Login successful', user.isAuth, user.apiKey, user.steamId);
   };
 
+  const closeModal = () => {
+    user.clearUser();
+  }
+
   return (
+    <PaperProvider>
     <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
       <TextInput
         style={styles.input}
-        placeholder="Steam ID"
+        label="Steam ID"
         value={steamId}
         onChangeText={setSteamId}
+        mode='outlined'
       />
       <TextInput
         style={styles.input}
-        placeholder="API Key"
+        label="API Key"
         secureTextEntry={true}
         value={apiKey}
         onChangeText={setApiKey}
+        mode='outlined'
+
       />
-      <Button title="Login" onPress={handleLogin} />
+      <TouchableOpacity style={styles.opacityStyle} disabled={!apiKey || !steamId}  onPress={handleLogin}>
+        <Text style={[styles.loadingStyle, {color: 'white'}]}>Login</Text>
+      </TouchableOpacity>
+      <Modal isVisible={!!user.error} onBackdropPress={closeModal}>
+        <View style={styles.loadingView}>
+          <Text style={styles.loadingStyle}>{user.error}</Text>
+        </View>
+      </Modal>
     </View>
+    </PaperProvider>
   );
 });
 
@@ -59,21 +68,26 @@ const styles = StyleSheet.create({
     color: '#2C3E50', // Темный цвет текста
   },
   input: {
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#BDC3C7', // Светлый серый цвет для рамки
-    padding: 8,
-    borderRadius: 8, // Закругленные углы
-    backgroundColor: 'white',
-    shadowColor: '#000',
-      shadowOffset: {
-        width: 3,
-        height: 3,
-      },
-      shadowOpacity: 0.1,
-      shadowRadius: 5,
-      elevation: 1,
+    marginBottom: 16, 
   },
+  loadingStyle: {
+    fontSize: 25,
+    color: '#2C3E50',
+    fontWeight: 'bold',
+    textAlign: 'center'
+  },
+  loadingView: {
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    backgroundColor: '#F0F0F0',
+    padding: 16,
+    borderRadius: 8,
+  },
+  opacityStyle: {
+    backgroundColor: '#6200EE', 
+    padding: 16, 
+    borderRadius: 8
+  }
 });
 
 export default AuthScreen;

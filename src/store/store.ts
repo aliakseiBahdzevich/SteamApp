@@ -1,94 +1,186 @@
-import { Instance, SnapshotOut, types } from 'mobx-state-tree';
+import {
+  applySnapshot,
+  flow,
+  Instance,
+  SnapshotOut,
+  types,
+} from 'mobx-state-tree';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { set } from 'mobx';
 import persist from 'mst-persist';
-import { number } from 'mobx-state-tree/dist/internal';
+import {getProfileInfo, getFriends} from '../api/api';
+import Modal from "react-native-modal";
 
 
-const FriendsModel = types
-  .model({
-    steamid: types.string,
-    relationship: types.string,
-    friend_since: types.number,
-    avatar: types.maybe(types.string),
-    personastate: types.maybe(types.number),
-    personaname: types.maybe(types.string)
+const FriendModel = types.model({
+  steamid: types.string,
+  friend_since: types.number,
+  avatar: types.maybe(types.string),
+  personastate: types.maybe(types.number),
+  personaname: types.maybe(types.string),
+});
+const UserModel = types.model({
+  steamId: types.string,
+  apiKey: types.string,
+  avatar: types.maybe(types.string),
+  personastate: types.maybe(types.number),
+  personaname: types.maybe(types.string),
+});
+const UserModelForReq = types.model({
+  steamId: types.string,
+  apiKey: types.string,
 })
 
-// Модель пользователя
-const UserModel = types
+
+const FriendsStateModel = types
   .model({
-    steamId: types.string,
-    apiKey: types.string,
-    isAuth: types.boolean,
-    friends: types.array(FriendsModel),
-    avatar: types.maybe(types.string),
-    personastate: types.maybe(types.number),
-    personaname: types.maybe(types.string)
+    friends: types.array(FriendModel),
+    error: types.maybe(types.string),
+    isLoading: types.boolean,
+    user: types.maybe(UserModelForReq),
   })
-  .actions((self) => ({
-    setSteamId(newSteamId: string) {
-      self.steamId = newSteamId;
+  .actions(self => ({
+    setUserParams(
+      newSteamId: string, 
+      newApiKey: string, 
+    ){
+      self.user = {
+        steamId: newSteamId,
+        apiKey: newApiKey,
+      }
     },
-    setApiKey(newApiKey: string) {
-      self.apiKey = newApiKey;
-    },
-    setIsAuth(newIsAuth: boolean) {
-      self.isAuth = newIsAuth;
-    },
-    addFriend(newFriends: Friend[]) {
-      // Получаем steamid новых друзей для проверки
-      const newFriendIds = newFriends.map(friend => friend.steamid);
-      
-      // Фильтруем текущих друзей, оставляя только тех, кто есть в новом списке
-      self.friends.replace(self.friends.filter(friend => newFriendIds.includes(friend.steamid)));
-  
-      // Добавляем новых друзей, которых еще нет в списке
-      newFriends.forEach(newFriend => {
-          const exists = self.friends.find(friend => friend.steamid === newFriend.steamid);
-          if (!exists) {
-              self.friends.push(newFriend); // Добавляем только если друг не существует
-          }
-      });
-    },
-  
-  
+    fetchFriends: flow(function* fetchProjects() {
+      self.isLoading = true;
+      self.error = undefined;
+
+      try {
+        if (self.user?.apiKey) {
+          const res: FriendId[] = yield getFriends({
+            apiKey: self.user?.apiKey,
+            steamId: self.user?.steamId,
+          });
+          const resultInfoFriends = yield getProfileInfo({
+            apiKey: self.user?.apiKey,
+            ids: res.map((friend: FriendId) => friend.steamid).join(','),
+          });
+          //const date = res.map((friend: FriendId) => friend.friend_since);
+          const resultFullInfoFriends = resultInfoFriends.map((friend: Friend) => {
+            const date = res.find((item: FriendId) => item.steamid === friend.steamid)?.friend_since;
+            return {
+              ...friend,
+              friend_since: date,
+            };
+          })
+          self.friends = resultFullInfoFriends;
+        }
+      } catch (error) {
+        const err = error as string;
+        self.error = err;
+      } finally {
+        self.isLoading = false;
+      }
+    }),
     clearFriends() {
       self.friends.clear();
+      self.error = undefined;
+      self.isLoading = false;
+      self.user = {
+        steamId: '',
+        apiKey: '',
+      };
     },
-    updateFriendAvatar(steamid: string, avatar: string, personastate: number, personaname: string) {
-      const friend = self.friends.find(f => f.steamid === steamid) ;
-      if (friend) {
-        friend.avatar = avatar; // Изменение свойства должно происходить в действии
-        friend.personastate = personastate
-        friend.personaname = personaname
-      }
-      else {
-        if (self.steamId === steamid) {
-          self.avatar = avatar;
-          self.personaname = personaname;
-          self.personastate = personastate;
-      }
-    }}
+  }));
 
+//userModalState
+const UserStateModel = types
+  .model({
+    user: types.maybe(UserModel),
+    error: types.maybe(types.string),
+    isLoading: types.boolean,
+    isAuth: types.boolean,
+  })
+  .actions(self => ({
+    setSteamId(newSteamId: string) {
+      if (self.user) {
+        self.user.steamId = newSteamId;
+      }
+
+    },
+    setApiKey(newApiKey: string) {
+      if (self.user) {
+        self.user.apiKey = newApiKey;
+      }
+    },
+    fetchProfileInfo: flow(function* fetchProjects() {
+      self.isLoading = true;
+      self.error = undefined;
+      try {
+        if (self.user?.apiKey && self.user.steamId) {
+          const res = yield getProfileInfo({
+            apiKey: self.user.apiKey,
+            ids: self.user.steamId,
+          })
+          if (res.error) {
+            self.isAuth = false;
+            self.error = res.error;
+          } 
+          else{
+            applySnapshot(self.user, { ...self.user, ...res[0] });
+            self.isAuth = true;
+          }
+        }
+      } catch (error) {
+        const err = error as string;
+        self.error = err;
+      } finally {
+        self.isLoading = false;
+      }
+    }),
+    clearUser() {
+      self.user = {
+        steamId: '',
+        apiKey: '',
+        avatar: '',
+        personastate: 0,
+        personaname: '',
+      };
+      self.isLoading = false;
+      self.isAuth = false;
+      self.error = undefined;
+    },
   }));
 
 // Корневое хранилище
 const RootStore = types
   .model({
-    user: UserModel,
+    user: UserStateModel,
+    friends: FriendsStateModel,
   })
   .create({
-  user: {
-    steamId: '',
-    apiKey: '',
-    isAuth: false,
-    friends: []
-  }
+    user: {
+      user: {
+        steamId: '',
+        apiKey: '',
+        avatar: '',
+        personastate: 0,
+        personaname: '',
+      },
+      isAuth: false,
+      error: undefined,
+      isLoading: false,
+    },
+    friends: {
+      friends: [],
+      error: undefined,
+      isLoading: false,
+      user: {
+        steamId: '',
+        apiKey: '',
+      }
+    }
   });
 
-  const store = persist('user1', RootStore, {
-    storage: AsyncStorage, // кэшируем
-  });
+const store = persist('storage', RootStore, {
+  storage: AsyncStorage, // кэшируем
+});
 
 export default RootStore;
